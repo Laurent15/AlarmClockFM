@@ -131,7 +131,7 @@ const unsigned char bell_2_bmp [] PROGMEM = {
 
 // ----- Define labels -----
 #define setting_clock "Date / Heure"
-#define setting_alarm "Alarm"
+#define setting_alarm "Alarme"
 #define setting_radio "Radio"
 
 // ----- Global variables. -----
@@ -141,15 +141,18 @@ int             mode = MODE_CLOCK;   // Mode 0 = Clock / Mode 1 = Setting / Mode
 int             previous_mode = mode;
 int             edit_hour, edit_minute, edit_day, edit_month, edit_year, edit_freq;
 int             edit_alarm_hour, edit_alarm_minute; 
+
+int volume = 3;
+double station = 1023;
+int ledPin = 44;  // led pin for controlling TFT screen brightness
+
 void setup() 
 {
     alarm_1_color = DARK_GRAY;
     alarm_2_color = DARK_GRAY;
 
-    int station = 1023;
+    pinMode(ledPin, OUTPUT);  // sets the pin as output
 
-    
-    
     if (! rtc.begin()) {
         Serial.println("Couldn't find RTC");
         while (1);
@@ -169,20 +172,17 @@ void setup()
     Init_Display();
     Clock_UI();
 
+    EEPROM.get(0, volume);
+    if (volume == 0) volume = 5;
+
+    // EEPROM.get(1, station);
+    // if (station == 0) station = 1023;
+    
     radio.setup(RESET_PIN, 20);
-    radio.setVolume(6);  
+    radio.setVolume(volume);  
     radio.setFrequency(station * 10);
-    radio.setMono(true);
+    radio.setMono(false);
 
-
-    // radio.init();
-    // radio.setVolume(10);
-    // radio.setBandFrequency(RADIO_BAND_FM, station * 10);
-    // radio.setFrequency(station * 10);
-    // radio.setMono(true);
-    // radio.setMute(true);
-    // radio.setSoftMute(true);
-    // radio.checkRDS() ;
 }
 
 void loop()
@@ -218,6 +218,8 @@ void loop()
         case MODE_SETTING_CLOCK:
             if(touchin(c, max_width-80, max_height - 20, 80, 20))
                 btn_back();
+            
+            // Save button
             if(touchin(c, 0, max_height - 20, 80, 20))
             {
                 rtc.adjust(DateTime(edit_year, edit_month, edit_day, edit_hour, edit_minute, 0));
@@ -310,8 +312,16 @@ void loop()
             break;
 
         case MODE_SETTING_ALARM:
+            // Back button
             if(touchin(c, max_width-80, max_height - 20, 80, 20))
                 btn_back();
+
+            // Save button
+            if(touchin(c, 0, max_height - 20, 80, 20))
+            {
+                rtc.adjust(DateTime(edit_year, edit_month, edit_day, edit_hour, edit_minute, 0));
+                btn_back();
+            }
             break;
 
         default:
@@ -399,9 +409,10 @@ void Init_Display()
     tft.begin(0x9341);
     tft.setRotation(3);
     // tft.setFont(&FreeSans9pt7b);
-    setBackLight(10);
+    setBackLight(255);
 }
 
+// Init UI related to Clock
 void Clock_UI()
 {
     Display_bg(MAIN_COLOR);
@@ -682,7 +693,16 @@ void Display_edit_alarm_clock_update(uint16_t color)
     int16_t     pos_x, pos_y;
 	uint16_t    len, size_char;
 
-    pos_y = 60;
+    // Alarm time setting
+    pos_y = 40;
+    size_str = 4;
+    sprintf(str, "Heure");
+    tft.setCursor(5, pos_y);
+    tft.setTextSize(size_str);
+    tft.setTextColor(color, BLACK);
+    Print_String(str);
+    
+    // pos_y = 60;
     size_str = 4;
     sprintf(str, "%02d:%02d", edit_alarm_hour, edit_alarm_minute);
     size_char = 6 * size_str;
@@ -693,15 +713,19 @@ void Display_edit_alarm_clock_update(uint16_t color)
     tft.setTextColor(color, BLACK);
     Print_String(str);
 
-    // Button Up Hours
-    pos_x = max_width/2 - len/2 - 1;
+
+    // Button Up/Down Hours
+    // pos_x = max_width/2 - len/2 - 1;
+    pos_x = max_width - len - 5;
     Display_btn_up(pos_x, pos_y - 20 - 5, 2*6*size_str, 20, color);
     Display_btn_down(pos_x, pos_y + 7*size_str + 5 , 2*6*size_str, 20, color);
 
     // Button Up Minutes
-    pos_x = max_width/2 + size_char/2 - 1;
-    Display_btn_up(pos_x, pos_y - 20 - 5 , 2*6*size_str, 20, color);
-    Display_btn_down(pos_x, pos_y + 7*size_str + 5 , 2*6*size_str, 20, color);
+    // pos_x = max_width/2 + size_char/2 - 1;
+    pos_x = max_width - 5;
+    // Display_btn_up(pos_x, pos_y - 5 , 2*6*size_str, 20, color);
+    Display_btn_up(320, pos_y, 2*6*size_str, 20, color);
+    Display_btn_down(320, pos_y + 7*size_str/2 + 5 , 2*6*size_str, 20, color);
 }
 
 void Display_setting_menu(uint16_t color)
@@ -799,5 +823,8 @@ void Print_String(String st)
 
 void setBackLight(uint8_t brightness)
 {
+    // brightness from 0 to 255
+    analogWrite(ledPin, brightness); // analogRead values go from 0 to 1023, analogWrite values from 0 to 255
+
 //   tft.setRegisters8(0x51, brightness);
 }
