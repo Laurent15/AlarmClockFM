@@ -14,6 +14,9 @@
 #include "SI470X.h"
 // #include <EEPROM.h>
 
+
+#define DISPLAY_TIME false
+
 RTC_DS3231 rtc;
 
 SI470X radio; 
@@ -98,9 +101,11 @@ void loop()
         ms_time_display = millis();
 
         now = rtc.now();
-        sprintf(time_str, "Time %02d/%02d/%04d %02d:%02d:%02d", now.day(), now.month(), now.year(), 
+        if(DISPLAY_TIME == true){
+            sprintf(time_str, "Time %02d/%02d/%04d %02d:%02d:%02d", now.day(), now.month(), now.year(), 
                                                                 now.hour(), now.minute(), now.second());
-        Serial.println(time_str);
+            Serial.println(time_str);
+        }
     }
 
     bool pb_state_change = push_button_get_state(pb_On_Off_Pin, &pb_On_Off_State, &pb_On_Off_lastState);
@@ -180,3 +185,4 @@ boolean push_button_get_state(int pb_pin, int *pb_state, int *pb_last_state)
     return(false);
 
 }
+
