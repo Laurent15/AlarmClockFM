@@ -13,7 +13,6 @@
 // #include <SI4703.h>
 #include <SI470X.h>
 #include <RDSParser.h>
-
 #include <EEPROM.h>
 
 // ----- Define TFT Screen Size -----
