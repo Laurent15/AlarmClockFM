@@ -117,7 +117,7 @@ void loop()
                 radio_State = true;
             }
         }
-    }    
+    }
 
     detect_rotary_button();   
     
