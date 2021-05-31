@@ -12,10 +12,26 @@
 
 // Radio
 #include "SI470X.h"
-// #include <EEPROM.h>
+#include <EEPROM.h>
 
 
 #define DISPLAY_TIME false
+
+// EEPROM Mapping
+#define eeprom_INIT_0   0       // Must be 'Y'
+#define eeprom_INIT_1   1       // Must be 'E'
+#define eeprom_INIT_2   2       // Must be 'S'
+#define eeprom_vol      10      // Max 15
+#define eeprom_freq     12      // Radio default freauency (i.e. 10550 for 105.50 MHz)
+
+// ----- Radio -----
+#define FIX_BAND     RADIO_BAND_FM   //< The band that will be tuned by this sketch is FM.
+#define FIX_STATION  10230            //< The station that will be tuned by this sketch is 105.50 MHz.
+#define FIX_VOLUME   4               //< The volume that will be set by this sketch is level 4.
+
+#define MAX_VOLUME      14
+#define MIN_FREQ        8750
+#define MAX_FREQ        10800
 
 RTC_DS3231 rtc;
 
@@ -47,14 +63,40 @@ int         pb_rotary_last_state = LOW;
 unsigned long lastDebounceTime = 0;     // the last time the output pin was toggled
 unsigned long debounceDelay = 50;       // the debounce time; increase if the output flickers
 
+// Radio variables
 bool radio_State = false;
+unsigned int radio_volume = 7;
+unsigned long radio_frequency = 10550;
 
 void setup() 
 {
+    char msg[100];
+    char eeprom_init[4];
+    
     Serial.begin(9600);
 
     Serial.println("Setup");
-    
+
+    Serial.println("Init EEPROM");
+   
+    EEPROM.get(eeprom_INIT_0, eeprom_init);
+    Serial.println(eeprom_init);
+
+    if( (eeprom_init[0] == 'Y') && (eeprom_init[1] == 'E') && (eeprom_init[2] == 'S') && (eeprom_init[3] == '\0')){
+        EEPROM.get(eeprom_vol, radio_volume);
+        Serial.println(radio_volume);
+        EEPROM.get(eeprom_freq, radio_frequency);
+        Serial.println(radio_frequency);
+
+    }
+    else{
+        EEPROM.put(eeprom_INIT_0, "YES\0");
+        EEPROM.put(eeprom_vol, (unsigned int)(FIX_VOLUME));
+        EEPROM.put(eeprom_freq, (unsigned long)(FIX_STATION));
+    }
+ 
+    Serial.println("Init RTC");
+
     if (!rtc.begin()) {
         Serial.println("Couldn't find RTC");
         while (1);
@@ -69,11 +111,12 @@ void setup()
         // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
         // This line sets the RTC with an explicit date & time, for example to set
         // January 21, 2014 at 3am you would call:
-        rtc.adjust(DateTime(2020, 1, 1, 0, 0, 0));
+        rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     ms_time_display = millis();
     
+    Serial.println("Configure push button");
+
     // initialize the pushbutton and rotary pins as an input:
     pinMode(pb_On_Off_Pin, INPUT);
     pinMode(rotary_pin_CLK, INPUT);
@@ -82,10 +125,19 @@ void setup()
     rotation = digitalRead(rotary_pin_CLK);
     Serial.println(rotation);
 
+    Serial.println("Init Radio");
+
     radio.setup(RESET_PIN, 20 /* SDA pin  for Arduino ATmega328 */);
-    radio.setVolume(0);  
-    radio.setFrequency(105.5 * 10);
+    // radio.setMute(true);
+    radio.setVolume(radio_volume);
+    radio.setFrequency(radio_frequency);
     radio.setMono(false);
+
+    sprintf(msg, "Set radio frequency to %d", radio_frequency);
+    Serial.println(msg);
+
+    Serial.println("Init completed!");
+
 }
 
 void loop() 
@@ -118,7 +170,7 @@ void loop()
             }
             else{
                 Serial.println("Start Radio");
-                // radio.setVolume(7);
+                radio.setVolume(7);
                 radio_State = true;
             }
         }
